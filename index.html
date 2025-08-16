@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>City Weather Checker (No API Key)</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background: #f0f2f5;
+        text-align: center;
+        padding: 20px;
+    }
+    .container {
+        max-width: 400px;
+        background: white;
+        padding: 20px;
+        margin: auto;
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    input {
+        padding: 10px;
+        width: 70%;
+        margin-bottom: 10px;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+    }
+    button {
+        padding: 10px;
+        background: #007BFF;
+        color: white;
+        border: none;
+        cursor: pointer;
+        border-radius: 5px;
+    }
+    button:hover {
+        background: #0056b3;
+    }
+    #weather {
+        margin-top: 20px;
+        text-align: left;
+        font-size: 16px;
+        line-height: 1.6;
+    }
+    .error {
+        color: red;
+        text-align: center;
+    }
+</style>
+</head>
+<body>
+<div class="container">
+    <h2>🌍 City Weather Checker</h2>
+    <input type="text" id="city" placeholder="Enter city name">
+    <button onclick="getWeather()">Get Weather</button>
+    <button onclick="detectLocation()">📍 Use My Location</button>
+    <div id="weather"></div>
+</div>
+
+<script>
+// Detect weather by user's location
+function detectLocation() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(position => {
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
+            fetchWeather(lat, lon, "Your Location");
+        }, () => {
+            document.getElementById("weather").innerHTML = `<p class="error">Location access denied.</p>`;
+        });
+    } else {
+        document.getElementById("weather").innerHTML = `<p class="error">Geolocation not supported.</p>`;
+    }
+}
+
+// Get weather from city name
+async function getWeather() {
+    const city = document.getElementById("city").value.trim();
+    if (!city) {
+        document.getElementById("weather").innerHTML = `<p class="error">Please enter a city name.</p>`;
+        return;
+    }
+
+    // Convert city name to coordinates using Open-Meteo's geocoding API
+    const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${city}&count=1`);
+    const geoData = await geoRes.json();
+
+    if (!geoData.results || geoData.results.length === 0) {
+        document.getElementById("weather").innerHTML = `<p class="error">City not found.</p>`;
+        return;
+    }
+
+    const { latitude, longitude, name, country } = geoData.results[0];
+    fetchWeather(latitude, longitude, `${name}, ${country}`);
+}
+
+// Fetch weather data from Open-Meteo
+async function fetchWeather(lat, lon, locationName) {
+    document.getElementById("weather").innerHTML = `<p>Loading...</p>`;
+
+    const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
+    const weatherData = await weatherRes.json();
+
+    if (!weatherData.current_weather) {
+        document.getElementById("weather").innerHTML = `<p class="error">Weather data not available.</p>`;
+        return;
+    }
+
+    const weather = weatherData.current_weather;
+    const localTime = new Date(weather.time).toLocaleString();
+
+    document.getElementById("weather").innerHTML = `
+        <strong>${locationName}</strong><br>
+        📅 <strong>Local Time:</strong> ${localTime}<br><br>
+        🌡 <strong>Temperature:</strong> ${weather.temperature}°C<br>
+        💨 <strong>Wind Speed:</strong> ${weather.windspeed} km/h<br>
+        ⏱ <strong>Wind Direction:</strong> ${weather.winddirection}°<br>
+        🌤 <strong>Condition Code:</strong> ${weather.weathercode}
+    `;
+}
+</script>
+</body>
+</html>
